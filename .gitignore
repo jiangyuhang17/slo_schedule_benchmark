@@ -8,3 +8,7 @@ cmdline.cc
 cmdline.h
 gtest
 config.h
+
+# my ignore
+.vscode/
+.DS_Store
