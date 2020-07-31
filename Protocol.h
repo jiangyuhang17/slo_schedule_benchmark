@@ -2,6 +2,8 @@
 #ifndef PROTOCOL_H
 #define PROTOCOL_H
 
+#include <cstring>
+
 #include <event2/bufferevent.h>
 
 #include "ConnectionOptions.h"
@@ -66,6 +68,34 @@ public:
   virtual int  get_request(const char* key);
   virtual int  set_request(const char* key, const char* value, int len);
   virtual bool handle_response(evbuffer* input, bool &done);
+};
+
+class ProtocolMemTest : public Protocol {
+public:
+  ProtocolMemTest(options_t opts, Connection* conn, bufferevent* bev):
+    Protocol(opts, conn, bev) {
+      data = new char[BLOCK_SIZE];
+      memset(data, 't', BLOCK_SIZE);
+    };
+  ~ProtocolMemTest() {
+    delete[] data;
+  };
+
+  virtual bool setup_connection_w();
+  virtual bool setup_connection_r(evbuffer* input);
+  virtual int  get_request(const char* key);
+  virtual int  set_request(const char* key, const char* value, int len);
+  virtual bool handle_response(evbuffer* input, bool &done);
+
+private:
+  enum read_fsm {
+    IDLE,
+    RUN
+  };
+
+  read_fsm read_state;
+  int remain_length = 0;
+  char* data;
 };
 
 #endif

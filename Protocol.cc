@@ -200,3 +200,71 @@ bool ProtocolBinary::handle_response(evbuffer *input, bool &done) {
   return true;
 }
 
+bool ProtocolMemTest::setup_connection_w() {
+  evbuffer_add_printf(bufferevent_get_output(bev), "SLO BW 1000000 95th 200\r\n");
+  return false;
+}
+
+bool ProtocolMemTest::setup_connection_r(evbuffer* input) {
+  char *buf = evbuffer_readln(input, NULL, EVBUFFER_EOL_CRLF);
+  if (buf != NULL && !strncmp(buf, "OK", 2))
+    return true;
+  return false;
+}
+
+int ProtocolMemTest::get_request(const char* key) {
+  int l;
+  l = evbuffer_add_printf(
+    bufferevent_get_output(bev), "get %10ld\r\n", lrand48());
+  I("in get_request");
+  if (read_state == IDLE) read_state = RUN;
+  return l;
+}
+
+int ProtocolMemTest::set_request(const char* key, const char* value, int len) {
+  int l;
+  l = evbuffer_add_printf(
+    bufferevent_get_output(bev), "set %10ld\r\n", lrand48());
+  I("in set_request");
+  bufferevent_write(bev, data, BLOCK_SIZE); // TODO
+  l += BLOCK_SIZE; // TODO
+  if (read_state == IDLE) read_state = RUN;
+  return l;
+}
+
+bool ProtocolMemTest::handle_response(evbuffer *input, bool &done) {
+  char *buf = NULL;
+  size_t n_read_out;
+
+  switch (read_state) {
+  case RUN:
+    buf = evbuffer_readln(input, &n_read_out, EVBUFFER_EOL_CRLF);
+    if (buf == NULL) return false;
+    I("buf %s", buf + remain_length);
+    conn->stats.rx_bytes += n_read_out;
+
+    if (!strncmp(buf + remain_length, "END", 3)) {
+      remain_length = 0;
+      done = true;
+    } else if (!strncmp(buf + remain_length, "resp get", 8)) {
+      remain_length = 0;
+      n_read_out = evbuffer_get_length(input);
+      I("n_read_out: %d", n_read_out);
+      evbuffer_drain(input, BLOCK_SIZE);
+      conn->stats.rx_bytes += BLOCK_SIZE;
+      remain_length = BLOCK_SIZE - n_read_out;
+      done = true;
+    } else {
+      W("handle_response bug");
+      done = false;
+      return false;
+    }
+    free(buf);
+    return true;
+  default: 
+    printf("state: %d\n", read_state); 
+    DIE("Unimplemented!");
+  }
+
+  DIE("Shouldn't ever reach here...");
+}
