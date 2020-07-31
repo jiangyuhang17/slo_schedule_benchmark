@@ -58,6 +58,10 @@ Connection::Connection(struct event_base* _base, struct evdns_base* _evdns,
     DIE("bufferevent_socket_connect_hostname()");
   }
 
+  // 需要修改libevent源码的EVBUFFER_MAX_READ为70000
+  bufferevent_set_max_single_read(bev, 70000);
+  bufferevent_set_max_single_write(bev, 70000);
+
   timer = evtimer_new(base, timer_cb, this);
 }
 
