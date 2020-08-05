@@ -5,6 +5,13 @@ Mutilate is a memcached load generator designed for high request
 rates, good tail-latency measurements, and realistic request stream
 generation.
 
+运行必填参数
+============
+``` bash
+./mutilate -s localhost:12580 --binary --noload
+```
+
+
 Requirements
 ============
 
